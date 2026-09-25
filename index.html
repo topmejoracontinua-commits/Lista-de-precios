@@ -74,6 +74,16 @@
   .principal .val{font-family:var(--display);font-size:26px;font-weight:700;color:var(--accent-dk);line-height:1}
   .principal .alt{font-size:12px;color:var(--muted)}
   tr.grp td{background:var(--soft);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px}
+  .nivel{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;margin-top:6px}
+  .nivel i{width:8px;height:8px;border-radius:4px;display:inline-block}
+  .nivel.ok{background:#e3f1e6;color:#1d6b33}.nivel.ok i{background:#1d8a3e}
+  .nivel.mod{background:#fbf0d9;color:#7a5200}.nivel.mod i{background:#d99a00}
+  .nivel.crit{background:#fbe3dc;color:#9a3412}.nivel.crit i{background:#c2410c}
+  .wa{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+  .wa-row{display:flex;gap:8px}
+  .wa-row input{flex:1;min-width:0;height:48px;border:1px solid var(--field);border-radius:10px;padding:0 12px;font-size:16px;font-family:var(--body)}
+  .btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 16px;border:none;border-radius:10px;background:#1d7a45;color:#fff;font-size:15px;font-weight:600;white-space:nowrap}
+  .btn-wa:hover{background:#155e35}
   .demo{background:var(--accent-dk);color:#fff;font-size:12px;text-align:center;padding:4px}
   .foot-note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.5}
 </style>
@@ -160,20 +170,22 @@ async function api(payload){
 }
 
 function demoData(q){
-  const precios = base => [
-    { lista: 'MP 6 / Mi Pyme 6 C / Bco Ctes 6C', categoria: 'Mostrador', moneda: 'ARS', sin_iva: base * 1.12, con_iva: base * 1.12 * 1.21, regla: '+12% sobre Contado' },
-    { lista: 'MP 12', categoria: 'Mostrador', moneda: 'ARS', sin_iva: base * 1.25, con_iva: base * 1.25 * 1.21, regla: '+25% sobre Contado' },
-    { lista: '0-30-60', categoria: 'Distribución', moneda: 'ARS', sin_iva: base * 0.95, con_iva: base * 0.95 * 1.21, regla: '-5% sobre Contado' },
-    { lista: 'Reventa 0/30/60', categoria: 'Reventa', moneda: 'ARS', sin_iva: base * 0.85, con_iva: base * 0.85 * 1.21, regla: '-15% sobre Contado' },
-    { lista: 'Reventa Afiliado Contado (PSR/LTR BSAR)', categoria: 'Reventa afiliado', moneda: 'ARS', sin_iva: base * 0.8, con_iva: base * 0.8 * 1.21, regla: 'Precio fijo' },
-    { lista: 'Afiliados empresas Contado (PSR/LTR BSAR)', categoria: 'Empresa afiliado', moneda: 'ARS', sin_iva: base * 0.82, con_iva: base * 0.82 * 1.21, regla: 'Precio fijo' }
+  const fila = (lista, categoria, v) => ({ lista, categoria, moneda: 'ARS', sin_iva: v, con_iva: v * 1.21 });
+  const precios = (b, afil) => [
+    fila('MP 6 / Mi Pyme 6 C / Bco Ctes 6C', 'Mostrador', b * 1.12),
+    fila('MP 12', 'Mostrador', b * 1.25),
+    fila('0-30-60', 'Distribución', b * 0.95),
+    fila('Reventa 0/30/60', 'Reventa', b * 0.85),
+    ...(afil ? [fila('Reventa Afiliado Contado (PSR/LTR BSAR)', 'Reventa afiliado', b * 0.8),
+                fila('Afiliados empresas Contado (PSR/LTR BSAR)', 'Empresa afiliado', b * 0.82)] : [])
   ];
-  const principal = base => ({ lista: 'Contado', categoria: 'principal', moneda: 'ARS', sin_iva: base, con_iva: base * 1.21, regla: 'Precio fijo' });
   return { q, iva: 0.21, total: 2, limitado: false, productos: [
-    { id: 1, nombre: '185/65R15 88H NEUMATICO DEMO A', codigo: 'DEMO-A', categoria: 'All / NEUMATICOS / PCR', stock_total: 9,
-      stock: [{ deposito: 'Posadas', cantidad: 6 }, { deposito: 'Eldorado', cantidad: 3 }], principal: principal(120000), precios: precios(120000) },
-    { id: 2, nombre: '185/60R15 84T NEUMATICO DEMO B', codigo: 'DEMO-B', categoria: 'All / NEUMATICOS / PCR', stock_total: 0,
-      stock: [], principal: principal(105000), precios: precios(105000) }
+    { id: 1, nombre: '185/65R15 88H FIRESTONE F600 DEMO', codigo: 'DEMO-A', categoria: 'All / NEUMATICOS / PSR', marca: 'FIRESTONE', afiliable: true,
+      stock_total: 26, stock: [{ deposito: 'Posadas', cantidad: 18 }, { deposito: 'Eldorado', cantidad: 8 }],
+      principal: fila('Contado', 'principal', 120000), precios: precios(120000, true) },
+    { id: 2, nombre: '185/65R15 88H HANKOOK K435 DEMO', codigo: 'DEMO-B', categoria: 'All / NEUMATICOS / PSR', marca: 'HANKOOK', afiliable: false,
+      stock_total: 5, stock: [{ deposito: 'Posadas', cantidad: 5 }],
+      principal: fila('Contado', 'principal', 98000), precios: precios(98000, false) }
   ] };
 }
 
@@ -211,56 +223,79 @@ function money(v, moneda){
   return sim + ' ' + Number(v).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+/* Semáforo de stock (suma de todos los depósitos) */
+function nivelStock(total){
+  if(total > 20) return { clase: 'ok',   texto: 'Disponible', emoji: '🟢' };
+  if(total >= 8) return { clase: 'mod',  texto: 'Moderado',   emoji: '🟡' };
+  return               { clase: 'crit', texto: 'Crítico',    emoji: '🔴' };
+}
+const ES_AFILIADO = c => c === 'Reventa afiliado' || c === 'Empresa afiliado';
+const preciosVisibles = p => p.precios.filter(pr => cat === 'Todas' || pr.categoria === cat);
+
 function render(){
   const res = document.getElementById('results'), status = document.getElementById('status');
   renderCats();
   if(!data) return;
   const soloStock = document.getElementById('soloStock').checked;
   const conIva = document.getElementById('conIva').checked;
-  const lista = data.productos.filter(p => !soloStock || p.stock_total > 0);
 
-  const conStock = data.productos.filter(p => p.stock_total > 0).length;
-  status.textContent = `${data.total} producto${data.total === 1 ? '' : 's'} para "${data.q}", ${conStock} con stock` +
-    (data.limitado ? '. Se muestran los primeros 50: afiná la búsqueda.' : '.');
+  // En listas de afiliados solo se muestran Bridgestone / Firestone / Dayton de categoría PSR o LTR
+  const base = data.productos.filter(p => !ES_AFILIADO(cat) || p.afiliable);
+  const lista = base.filter(p => !soloStock || p.stock_total > 0);
+
+  const conStock = base.filter(p => p.stock_total > 0).length;
+  status.textContent = `${base.length} producto${base.length === 1 ? '' : 's'} para "${data.q}"` +
+    (ES_AFILIADO(cat) ? ' (solo Bridgestone, Firestone y Dayton PSR/LTR)' : '') +
+    `, ${conStock} con stock` + (data.limitado ? '. Se muestran los primeros 50: afiná la búsqueda.' : '.');
 
   if(!lista.length){
-    res.innerHTML = `<div class="empty">${data.total ? 'Ninguno tiene stock. Destildá "Solo con stock" para verlos.' : 'Sin resultados. Probá solo con la medida, por ejemplo 205 55 16.'}</div>`;
+    const msg = !base.length && ES_AFILIADO(cat) ? 'Ningún producto de la búsqueda aplica a listas de afiliados.'
+      : base.length ? 'Ninguno tiene stock. Destildá "Solo con stock" para verlos.'
+      : 'Sin resultados. Probá solo con la medida, por ejemplo 185 65 15.';
+    res.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
 
+  const cols = conIva ? 2 : 3;
+  const head = conIva
+    ? `<th>Condición</th><th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>`
+    : `<th>Condición</th><th class="num">Sin IVA</th><th class="num">Con IVA</th>`;
+
   res.innerHTML = lista.map((p, i) => {
+    const nv = nivelStock(p.stock_total);
     const stockChips = p.stock.length
       ? p.stock.map(d => `<span class="chip">${esc(d.deposito)}: <b>${d.cantidad}</b></span>`).join('')
       : '<span class="chip">Sin stock en ningún depósito</span>';
-    const visibles = p.precios.filter(pr => cat === 'Todas' || pr.categoria === cat);
+
     let grupo = null;
-    const filas = visibles.map(pr => {
+    const filas = preciosVisibles(p).map(pr => {
       let cab = '';
       if(cat === 'Todas' && pr.categoria !== grupo){
         grupo = pr.categoria;
-        cab = `<tr class="grp"><td colspan="${conIva ? 3 : 2}">${esc(grupo)}</td></tr>`;
+        cab = `<tr class="grp"><td colspan="${cols}">${esc(grupo)}</td></tr>`;
       }
-      return cab + `
-      <tr>
-        <td class="lista"><b>${esc(pr.lista)}</b><small>${esc(pr.regla)}</small></td>
-        <td class="num ${conIva ? '' : 'big'}">${money(pr.sin_iva, pr.moneda)}</td>
-        ${conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>` : ''}
-      </tr>`;
-    }).join('') || `<tr><td colspan="${conIva ? 3 : 2}" class="lista"><small>Sin listas de ${esc(cat)} para este producto.</small></td></tr>`;
+      return cab + `<tr><td class="lista"><b>${esc(pr.lista)}</b></td>` +
+        (conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>`
+                : `<td class="num">${money(pr.sin_iva, pr.moneda)}</td><td class="num big">${money(pr.con_iva, pr.moneda)}</td>`) +
+        `</tr>`;
+    }).join('') || `<tr><td colspan="${cols}" class="lista"><small>Sin listas de ${esc(cat)} para este producto.</small></td></tr>`;
+
     const pr0 = p.principal;
     const principal = pr0 ? `
       <div class="principal">
         <span class="lbl">Contado</span>
-        <span class="val">${money(conIva ? pr0.con_iva : pr0.sin_iva, pr0.moneda)}</span>
-        <span class="alt">${conIva ? money(pr0.sin_iva, pr0.moneda) + ' sin IVA' : money(pr0.con_iva, pr0.moneda) + ' con IVA'}</span>
+        <span class="val">${money(pr0.con_iva, pr0.moneda)}</span>
+        ${conIva ? '<span class="alt">con IVA</span>' : `<span class="alt">con IVA · ${money(pr0.sin_iva, pr0.moneda)} sin IVA</span>`}
       </div>` : '';
+
     return `
       <details class="prod" ${i === 0 ? 'open' : ''}>
         <summary>
           <div class="pinfo">
             <div class="pname">${esc(p.nombre)}</div>
-            <div class="pmeta">${esc(p.codigo)}${p.codigo && p.categoria ? ' · ' : ''}${esc(p.categoria.replace(/^All \/ /, ''))}</div>
+            <div class="pmeta">${esc(p.codigo)}${p.marca ? ' · ' + esc(p.marca) : ''}${p.categoria ? ' · ' + esc(p.categoria.replace(/^All \/ /, '')) : ''}</div>
             ${principal}
+            <span class="nivel ${nv.clase}"><i></i>Stock ${nv.texto}</span>
           </div>
           <div class="pstock ${p.stock_total > 0 ? '' : 'zero'}"><b>${p.stock_total}</b><small>en stock</small></div>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -268,16 +303,64 @@ function render(){
         <div class="pbody">
           <div class="sect">Stock disponible por depósito</div>
           <div class="chips">${stockChips}</div>
-          <div class="sect">Precios por lista${cat === 'Todas' ? '' : ' · ' + esc(cat)}</div>
+          <div class="sect">Precios por condición${cat === 'Todas' ? '' : ' · ' + esc(cat)}</div>
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>Lista</th><th class="num">Sin IVA</th>${conIva ? `<th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>` : ''}</tr></thead>
+              <thead><tr>${head}</tr></thead>
               <tbody>${filas}</tbody>
             </table>
           </div>
+          <div class="wa">
+            <div class="sect">Compartir por WhatsApp</div>
+            <div class="wa-row">
+              <input id="tel_${p.id}" inputmode="tel" autocomplete="off" placeholder="Celular (opcional): 3764 123456" aria-label="Número de WhatsApp del cliente">
+              <button class="btn-wa" onclick="compartir(${p.id})">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>
+                Enviar
+              </button>
+            </div>
+            <div class="hint" style="font-size:12px;color:var(--muted)">Sin número abre WhatsApp para elegir el contacto. Con número va directo al chat del cliente. Se envían los precios con IVA de la categoría elegida.</div>
+          </div>
         </div>
       </details>`;
-  }).join('') + `<p class="foot-note">Precios para 1 unidad, calculados con las reglas vigentes de cada lista. Stock disponible = cantidad menos lo reservado.</p>`;
+  }).join('') + `<p class="foot-note">Precios para 1 unidad. Stock disponible = cantidad menos lo reservado. Semáforo: más de 20 disponible, de 8 a 20 moderado, menos de 8 crítico.</p>`;
+}
+
+/* ---------- WhatsApp ---------- */
+function telWhatsApp(v){
+  let d = String(v || '').replace(/\D/g, '');
+  if(!d) return '';
+  if(d.startsWith('00')) d = d.slice(2);
+  if(d.startsWith('54')) d = d.slice(2);
+  if(d.startsWith('9')) d = d.slice(1);
+  if(d.startsWith('0')) d = d.slice(1);
+  if(d.length === 12) d = d.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');   // saca el 15 después de la característica
+  return d.length === 10 ? '549' + d : null;
+}
+function compartir(id){
+  const p = data.productos.find(x => x.id === id);
+  if(!p) return;
+  const input = document.getElementById('tel_' + id);
+  const tel = telWhatsApp(input.value);
+  if(tel === null){
+    alert('Número inválido. Escribilo con característica y sin 0 ni 15, por ejemplo 3764 123456.');
+    input.focus(); return;
+  }
+  const nv = nivelStock(p.stock_total);
+  const l = [];
+  l.push(`*${p.nombre}*`);
+  l.push(`Código: ${p.codigo || '-'}`);
+  if(p.marca) l.push(`Marca: ${p.marca}`);
+  l.push(`Stock: ${nv.emoji} ${nv.texto}`);
+  l.push('');
+  l.push('*Precios con IVA*');
+  if(p.principal) l.push(`• Contado: ${money(p.principal.con_iva, p.principal.moneda)}`);
+  preciosVisibles(p).forEach(pr => l.push(`• ${pr.lista}: ${money(pr.con_iva, pr.moneda)}`));
+  l.push('');
+  l.push('_Precios sujetos a modificación sin previo aviso._');
+  l.push('Top Neumáticos');
+  const url = 'https://wa.me/' + (tel || '') + '?text=' + encodeURIComponent(l.join('\n'));
+  window.open(url, '_blank', 'noopener');
 }
 
 renderCats();
