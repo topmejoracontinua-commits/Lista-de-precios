@@ -84,6 +84,12 @@
   .wa-row input{flex:1;min-width:0;height:48px;border:1px solid var(--field);border-radius:10px;padding:0 12px;font-size:16px;font-family:var(--body)}
   .btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 16px;border:none;border-radius:10px;background:#1d7a45;color:#fff;font-size:15px;font-weight:600;white-space:nowrap}
   .btn-wa:hover{background:#155e35}
+  td.sel{width:40px;padding:6px 4px 6px 8px}
+  td.sel input{width:22px;height:22px;accent-color:#1d7a45;cursor:pointer;display:block}
+  tr.fila{cursor:pointer}
+  tr.fila.on td{background:#e8f4ec}
+  tr.contado td.lista b{color:var(--accent-dk)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .demo{background:var(--accent-dk);color:#fff;font-size:12px;text-align:center;padding:4px}
   .foot-note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.5}
 </style>
@@ -138,8 +144,10 @@ function renderCats(){
   document.getElementById('cats').innerHTML = lista.map(c =>
     `<button aria-pressed="${c === cat}" onclick="setCat('${c}')">${c}</button>`).join('');
 }
+const seleccion = new Set();   // claves "idProducto|lista" marcadas para enviar
 function setCat(c){
   cat = c;
+  seleccion.clear();
   try { localStorage.setItem('cp_cat', c); } catch(e){}
   renderCats(); render();
 }
@@ -256,10 +264,20 @@ function render(){
     return;
   }
 
-  const cols = conIva ? 2 : 3;
+  const cols = conIva ? 3 : 4;
   const head = conIva
-    ? `<th>Condición</th><th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>`
-    : `<th>Condición</th><th class="num">Sin IVA</th><th class="num">Con IVA</th>`;
+    ? `<th><span class="sr">Enviar</span></th><th>Condición</th><th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>`
+    : `<th><span class="sr">Enviar</span></th><th>Condición</th><th class="num">Sin IVA</th><th class="num">Con IVA</th>`;
+  const filaPrecio = (p, pr, extraClase) => {
+    const key = p.id + '|' + pr.lista;
+    const on = seleccion.has(key);
+    return `<tr class="fila ${extraClase || ''} ${on ? 'on' : ''}" onclick="toggleSel(event, ${p.id}, '${encodeURIComponent(pr.lista)}')">
+      <td class="sel"><input type="checkbox" ${on ? 'checked' : ''} aria-label="Enviar ${esc(pr.lista)}" tabindex="0"></td>
+      <td class="lista"><b>${esc(pr.lista)}</b></td>` +
+      (conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>`
+              : `<td class="num">${money(pr.sin_iva, pr.moneda)}</td><td class="num big">${money(pr.con_iva, pr.moneda)}</td>`) +
+      `</tr>`;
+  };
 
   res.innerHTML = lista.map((p, i) => {
     const nv = nivelStock(p.stock_total);
@@ -268,17 +286,17 @@ function render(){
       : '<span class="chip">Sin stock en ningún depósito</span>';
 
     let grupo = null;
-    const filas = preciosVisibles(p).map(pr => {
+    const filasListas = preciosVisibles(p).map(pr => {
       let cab = '';
       if(cat === 'Todas' && pr.categoria !== grupo){
         grupo = pr.categoria;
         cab = `<tr class="grp"><td colspan="${cols}">${esc(grupo)}</td></tr>`;
       }
-      return cab + `<tr><td class="lista"><b>${esc(pr.lista)}</b></td>` +
-        (conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>`
-                : `<td class="num">${money(pr.sin_iva, pr.moneda)}</td><td class="num big">${money(pr.con_iva, pr.moneda)}</td>`) +
-        `</tr>`;
-    }).join('') || `<tr><td colspan="${cols}" class="lista"><small>Sin listas de ${esc(cat)} para este producto.</small></td></tr>`;
+      return cab + filaPrecio(p, pr);
+    }).join('');
+    const filas = (p.principal ? filaPrecio(p, p.principal, 'contado') : '') +
+      (filasListas || `<tr><td colspan="${cols}" class="lista"><small>Sin listas de ${esc(cat)} para este producto.</small></td></tr>`);
+    const nSel = [...seleccion].filter(k => k.startsWith(p.id + '|')).length;
 
     const pr0 = p.principal;
     const principal = pr0 ? `
@@ -311,41 +329,29 @@ function render(){
             </table>
           </div>
           <div class="wa">
-            <div class="sect">Compartir por WhatsApp</div>
-            <div class="wa-row">
-              <input id="tel_${p.id}" inputmode="tel" autocomplete="off" placeholder="Celular (opcional): 3764 123456" aria-label="Número de WhatsApp del cliente">
-              <button class="btn-wa" onclick="compartir(${p.id})">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>
-                Enviar
-              </button>
-            </div>
-            <div class="hint" style="font-size:12px;color:var(--muted)">Sin número abre WhatsApp para elegir el contacto. Con número va directo al chat del cliente. Se envían los precios con IVA de la categoría elegida.</div>
+            <button class="btn-wa" onclick="compartir(${p.id})" ${nSel ? '' : 'disabled'}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>
+              ${nSel ? `Enviar ${nSel} precio${nSel === 1 ? '' : 's'} por WhatsApp` : 'Marcá los precios a enviar'}
+            </button>
           </div>
         </div>
       </details>`;
   }).join('') + `<p class="foot-note">Precios para 1 unidad. Stock disponible = cantidad menos lo reservado. Semáforo: más de 20 disponible, de 8 a 20 moderado, menos de 8 crítico.</p>`;
 }
 
-/* ---------- WhatsApp ---------- */
-function telWhatsApp(v){
-  let d = String(v || '').replace(/\D/g, '');
-  if(!d) return '';
-  if(d.startsWith('00')) d = d.slice(2);
-  if(d.startsWith('54')) d = d.slice(2);
-  if(d.startsWith('9')) d = d.slice(1);
-  if(d.startsWith('0')) d = d.slice(1);
-  if(d.length === 12) d = d.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');   // saca el 15 después de la característica
-  return d.length === 10 ? '549' + d : null;
+/* ---------- Selección y WhatsApp ---------- */
+function toggleSel(ev, id, listaEnc){
+  const key = id + '|' + decodeURIComponent(listaEnc);
+  if(seleccion.has(key)) seleccion.delete(key); else seleccion.add(key);
+  const abiertos = [...document.querySelectorAll('details.prod')].map(d => d.open);
+  render();
+  document.querySelectorAll('details.prod').forEach((d, i) => { d.open = !!abiertos[i]; });
 }
 function compartir(id){
   const p = data.productos.find(x => x.id === id);
   if(!p) return;
-  const input = document.getElementById('tel_' + id);
-  const tel = telWhatsApp(input.value);
-  if(tel === null){
-    alert('Número inválido. Escribilo con característica y sin 0 ni 15, por ejemplo 3764 123456.');
-    input.focus(); return;
-  }
+  const elegidos = [p.principal, ...p.precios].filter(pr => pr && seleccion.has(p.id + '|' + pr.lista));
+  if(!elegidos.length) return;
   const nv = nivelStock(p.stock_total);
   const l = [];
   l.push(`*${p.nombre}*`);
@@ -353,14 +359,12 @@ function compartir(id){
   if(p.marca) l.push(`Marca: ${p.marca}`);
   l.push(`Stock: ${nv.emoji} ${nv.texto}`);
   l.push('');
-  l.push('*Precios con IVA*');
-  if(p.principal) l.push(`• Contado: ${money(p.principal.con_iva, p.principal.moneda)}`);
-  preciosVisibles(p).forEach(pr => l.push(`• ${pr.lista}: ${money(pr.con_iva, pr.moneda)}`));
+  l.push('*Precio con IVA*');
+  elegidos.forEach(pr => l.push(`• ${pr.lista}: ${money(pr.con_iva, pr.moneda)}`));
   l.push('');
   l.push('_Precios sujetos a modificación sin previo aviso._');
   l.push('Top Neumáticos');
-  const url = 'https://wa.me/' + (tel || '') + '?text=' + encodeURIComponent(l.join('\n'));
-  window.open(url, '_blank', 'noopener');
+  window.open('https://wa.me/?text=' + encodeURIComponent(l.join('\n')), '_blank', 'noopener');
 }
 
 renderCats();
