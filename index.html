@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Consultor de precios y stock – Top Neumáticos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b1d1f; --ground:#f2f0eb; --card:#ffffff; --line:#d9d5cc; --field:#b8b3a8;
+    --muted:#5b5750; --accent:#c2410c; --accent-dk:#9a3412; --live:#1d4ed8; --soft:#ece9e2;
+    --display:'Barlow Condensed','Arial Narrow',sans-serif;
+    --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#dedad2;color:var(--ink);font-family:var(--body);-webkit-text-size-adjust:100%}
+  .app{max-width:760px;min-height:100vh;margin:0 auto;background:var(--ground);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+  header{background:var(--ink);color:#fff;padding:calc(18px + env(safe-area-inset-top,0px)) 20px 16px;position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:12px}
+  .brand{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.5px}
+  .sub{font-size:13px;color:#d6d3cc}
+  .search{display:flex;gap:8px}
+  .search input{flex:1;min-width:0;height:54px;border:none;border-radius:10px;padding:0 14px;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink)}
+  .search input::placeholder{font-family:var(--body);font-size:15px;font-weight:400;letter-spacing:0;text-transform:none;color:#8a857b}
+  button{font-family:var(--body);cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .btn{border:none;border-radius:10px;font-size:15px;font-weight:600;min-height:54px;padding:0 20px;background:var(--accent);color:#fff}
+  .btn:hover{background:var(--accent-dk)}
+  input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--live);outline-offset:2px}
+  .opts{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:#d6d3cc}
+  .opts label{display:flex;align-items:center;gap:8px;min-height:32px;cursor:pointer}
+  .opts input{width:20px;height:20px;accent-color:var(--accent)}
+
+  main{padding:16px 16px 32px;display:flex;flex-direction:column;gap:12px}
+  .status{font-size:14px;color:var(--muted);padding:0 4px}
+  .err{background:#fff;border:2px solid var(--accent-dk);border-radius:12px;padding:14px 16px;color:var(--accent-dk);font-weight:600;font-size:14px}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:15px;line-height:1.5}
+
+  details.prod{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  details.prod[open]{border-color:var(--ink)}
+  summary{list-style:none;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+  summary::-webkit-details-marker{display:none}
+  .pinfo{flex:1;min-width:0}
+  .pname{font-size:16px;font-weight:600;line-height:1.3}
+  .pmeta{font-size:12px;color:var(--muted);margin-top:4px}
+  .pstock{text-align:right;flex-shrink:0}
+  .pstock b{display:block;font-family:var(--display);font-size:28px;line-height:1}
+  .pstock small{font-size:11px;color:var(--muted)}
+  .pstock.zero b{color:var(--accent-dk)}
+  .chev{width:20px;height:20px;flex-shrink:0;margin-top:2px;transition:transform .15s}
+  details[open] .chev{transform:rotate(180deg)}
+
+  .pbody{border-top:1px solid var(--line);padding:14px 16px 16px;display:flex;flex-direction:column;gap:14px}
+  .sect{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:var(--soft);border-radius:20px;padding:6px 12px;font-size:13px}
+  .chip b{font-weight:600}
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th.num,td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  td{padding:9px 8px;border-bottom:1px solid var(--soft);vertical-align:top}
+  td.lista b{font-weight:600}
+  td.lista small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+  td.big{font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .demo{background:var(--accent-dk);color:#fff;font-size:12px;text-align:center;padding:4px}
+  .foot-note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="demo" id="demoBar" style="display:none">Modo demo: sin conexión a Odoo</div>
+  <header>
+    <div>
+      <div class="brand">TOP · Consultor de precios</div>
+      <div class="sub">Precio por lista y stock por depósito, en vivo desde Odoo</div>
+    </div>
+    <div class="search">
+      <input id="q" placeholder="Medida o nombre: 205 55 16, F600…" autocomplete="off" enterkeyhint="search" aria-label="Buscar producto" onkeydown="if(event.key==='Enter')buscar()">
+      <button class="btn" id="btnBuscar" onclick="buscar()">Buscar</button>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="soloStock" onchange="render()"> Solo con stock</label>
+      <label><input type="checkbox" id="conIva" checked onchange="render()"> Mostrar con IVA</label>
+    </div>
+  </header>
+
+  <main>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="err" id="err" style="display:none"></div>
+    <div id="results"></div>
+    <div class="empty" id="empty">Escribí una medida o parte del nombre y tocá Buscar.<br>Ejemplos: <b>205 55 16</b>, <b>175/70R13</b>, <b>F600</b>.</div>
+  </main>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN
+   WEBHOOK_URL vacío = modo demo (no llama a n8n).
+   ===================================================================== */
+const CONFIG = {
+  WEBHOOK_URL: 'https://envy-recollect-last.ngrok-free.dev/webhook/consulta-precios',
+  HEADER_NAME: 'X-CP-Key'     // mismo nombre que la credencial Header Auth del Webhook
+};
+const DEMO = !CONFIG.WEBHOOK_URL;
+
+let data = null;
+
+/* ---------- API ---------- */
+function getKey(){
+  let k = null;
+  try { k = localStorage.getItem('cp_key'); } catch(e){}
+  if(!k){
+    k = window.prompt('Clave de acceso (la da el administrador):');
+    if(!k) throw new Error('Falta la clave de acceso.');
+    if(window.confirm('¿Recordar la clave en este dispositivo?')){ try{ localStorage.setItem('cp_key', k); }catch(e){} }
+  }
+  return k;
+}
+async function api(payload){
+  const key = getKey();
+  const r = await fetch(CONFIG.WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [CONFIG.HEADER_NAME]: key, 'ngrok-skip-browser-warning': '1' },
+    body: JSON.stringify(payload)
+  });
+  if(r.status === 401 || r.status === 403){ try{ localStorage.removeItem('cp_key'); }catch(e){} throw new Error('Clave incorrecta. Volvé a intentar.'); }
+  const txt = await r.text();
+  if(!r.ok) throw new Error('Error del servidor (' + r.status + '): ' + (txt || 'sin detalle') + '. Revisá Executions en n8n.');
+  if(!txt) throw new Error('n8n respondió vacío. Revisá Executions en n8n.');
+  try { return JSON.parse(txt); } catch(e){ throw new Error('Respuesta no válida de n8n: ' + txt.slice(0, 120)); }
+}
+
+function demoData(q){
+  return { q, iva: 0.21, total: 2, limitado: false, productos: [
+    { id: 1, nombre: '205/55R16 91V NEUMATICO DEMO A', codigo: 'DEMO-A', categoria: 'All / NEUMATICOS / PCR', precio_venta: 150000, stock_total: 9,
+      stock: [{ deposito: 'Posadas', cantidad: 6 }, { deposito: 'Eldorado', cantidad: 3 }],
+      precios: [
+        { lista: 'Contado', moneda: 'ARS', sin_iva: 135000, con_iva: 163350, regla: '-10% sobre Minorista' },
+        { lista: 'Mayorista', moneda: 'ARS', sin_iva: 127500, con_iva: 154275, regla: '-15% sobre precio de venta' },
+        { lista: 'Minorista', moneda: 'ARS', sin_iva: 150000, con_iva: 181500, regla: 'Precio fijo' }
+      ] },
+    { id: 2, nombre: '205/55R16 94W NEUMATICO DEMO B', codigo: 'DEMO-B', categoria: 'All / NEUMATICOS / PCR', precio_venta: 180000, stock_total: 0,
+      stock: [],
+      precios: [
+        { lista: 'Contado', moneda: 'ARS', sin_iva: 162000, con_iva: 196020, regla: '-10% sobre Minorista' },
+        { lista: 'Mayorista', moneda: 'ARS', sin_iva: 153000, con_iva: 185130, regla: '-15% sobre precio de venta' },
+        { lista: 'Minorista', moneda: 'ARS', sin_iva: 180000, con_iva: 217800, regla: 'Precio de venta' }
+      ] }
+  ] };
+}
+
+/* ---------- Búsqueda ---------- */
+async function buscar(){
+  const q = document.getElementById('q').value.trim();
+  const err = document.getElementById('err'), status = document.getElementById('status');
+  err.style.display = 'none';
+  if(q.replace(/[^a-z0-9]/gi, '').length < 3){
+    err.textContent = 'Escribí al menos 3 letras o números.'; err.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('btnBuscar');
+  btn.disabled = true; btn.textContent = 'Buscando…';
+  status.textContent = 'Consultando Odoo…';
+  document.getElementById('empty').style.display = 'none';
+  try{
+    data = DEMO ? demoData(q) : await api({ q });
+    render();
+  }catch(e){
+    data = null;
+    document.getElementById('results').innerHTML = '';
+    status.textContent = '';
+    err.textContent = e.message; err.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Buscar';
+    document.getElementById('q').blur();
+  }
+}
+
+/* ---------- Render ---------- */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+function money(v, moneda){
+  if(v == null) return '—';
+  const sim = !moneda || moneda === 'ARS' ? '$' : moneda;
+  return sim + ' ' + Number(v).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function render(){
+  const res = document.getElementById('results'), status = document.getElementById('status');
+  if(!data) return;
+  const soloStock = document.getElementById('soloStock').checked;
+  const conIva = document.getElementById('conIva').checked;
+  const lista = data.productos.filter(p => !soloStock || p.stock_total > 0);
+
+  const conStock = data.productos.filter(p => p.stock_total > 0).length;
+  status.textContent = `${data.total} producto${data.total === 1 ? '' : 's'} para "${data.q}", ${conStock} con stock` +
+    (data.limitado ? '. Se muestran los primeros 50: afiná la búsqueda.' : '.');
+
+  if(!lista.length){
+    res.innerHTML = `<div class="empty">${data.total ? 'Ninguno tiene stock. Destildá "Solo con stock" para verlos.' : 'Sin resultados. Probá solo con la medida, por ejemplo 205 55 16.'}</div>`;
+    return;
+  }
+
+  res.innerHTML = lista.map((p, i) => {
+    const stockChips = p.stock.length
+      ? p.stock.map(d => `<span class="chip">${esc(d.deposito)}: <b>${d.cantidad}</b></span>`).join('')
+      : '<span class="chip">Sin stock en ningún depósito</span>';
+    const filas = p.precios.map(pr => `
+      <tr>
+        <td class="lista"><b>${esc(pr.lista)}</b><small>${esc(pr.regla)}</small></td>
+        <td class="num ${conIva ? '' : 'big'}">${money(pr.sin_iva, pr.moneda)}</td>
+        ${conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>` : ''}
+      </tr>`).join('');
+    return `
+      <details class="prod" ${i === 0 ? 'open' : ''}>
+        <summary>
+          <div class="pinfo">
+            <div class="pname">${esc(p.nombre)}</div>
+            <div class="pmeta">${esc(p.codigo)}${p.codigo && p.categoria ? ' · ' : ''}${esc(p.categoria.replace(/^All \/ /, ''))}</div>
+          </div>
+          <div class="pstock ${p.stock_total > 0 ? '' : 'zero'}"><b>${p.stock_total}</b><small>en stock</small></div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="pbody">
+          <div class="sect">Stock disponible por depósito</div>
+          <div class="chips">${stockChips}</div>
+          <div class="sect">Precios por lista</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Lista</th><th class="num">Sin IVA</th>${conIva ? `<th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>` : ''}</tr></thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>`;
+  }).join('') + `<p class="foot-note">Precios para 1 unidad, calculados con las reglas vigentes de cada lista. Stock disponible = cantidad menos lo reservado.</p>`;
+}
+
+if(DEMO) document.getElementById('demoBar').style.display = 'block';
+document.getElementById('q').focus();
+</script>
+</body>
+</html>
