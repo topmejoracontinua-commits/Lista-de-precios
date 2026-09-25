@@ -65,6 +65,15 @@
   td.lista small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
   td.big{font-weight:600}
   tr:last-child td{border-bottom:none}
+  .cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .cats button{flex-shrink:0;min-height:40px;padding:0 14px;border-radius:20px;border:1px solid #5b5750;background:transparent;color:#fff;font-size:14px;font-weight:600;white-space:nowrap}
+  .cats button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+  .principal{margin-top:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .principal .lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .principal .val{font-family:var(--display);font-size:26px;font-weight:700;color:var(--accent-dk);line-height:1}
+  .principal .alt{font-size:12px;color:var(--muted)}
+  tr.grp td{background:var(--soft);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 8px}
   .demo{background:var(--accent-dk);color:#fff;font-size:12px;text-align:center;padding:4px}
   .foot-note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.5}
 </style>
@@ -81,6 +90,7 @@
       <input id="q" placeholder="Medida o nombre: 205 55 16, F600…" autocomplete="off" enterkeyhint="search" aria-label="Buscar producto" onkeydown="if(event.key==='Enter')buscar()">
       <button class="btn" id="btnBuscar" onclick="buscar()">Buscar</button>
     </div>
+    <div class="cats" role="group" aria-label="Tipo de cliente" id="cats"></div>
     <div class="opts">
       <label><input type="checkbox" id="soloStock" onchange="render()"> Solo con stock</label>
       <label><input type="checkbox" id="conIva" checked onchange="render()"> Mostrar con IVA</label>
@@ -107,6 +117,22 @@ const CONFIG = {
 const DEMO = !CONFIG.WEBHOOK_URL;
 
 let data = null;
+const CATS_BASE = ['Todas', 'Mostrador', 'Distribución', 'Reventa', 'Reventa afiliado', 'Empresa afiliado'];
+let cat = 'Todas';
+try { cat = localStorage.getItem('cp_cat') || 'Todas'; } catch(e){}
+
+function renderCats(){
+  const extra = data && data.productos.some(p => p.precios.some(x => x.categoria === 'Otras')) ? ['Otras'] : [];
+  const lista = [...CATS_BASE, ...extra];
+  if(!lista.includes(cat)) cat = 'Todas';
+  document.getElementById('cats').innerHTML = lista.map(c =>
+    `<button aria-pressed="${c === cat}" onclick="setCat('${c}')">${c}</button>`).join('');
+}
+function setCat(c){
+  cat = c;
+  try { localStorage.setItem('cp_cat', c); } catch(e){}
+  renderCats(); render();
+}
 
 /* ---------- API ---------- */
 function getKey(){
@@ -134,21 +160,20 @@ async function api(payload){
 }
 
 function demoData(q){
+  const precios = base => [
+    { lista: 'MP 6 / Mi Pyme 6 C / Bco Ctes 6C', categoria: 'Mostrador', moneda: 'ARS', sin_iva: base * 1.12, con_iva: base * 1.12 * 1.21, regla: '+12% sobre Contado' },
+    { lista: 'MP 12', categoria: 'Mostrador', moneda: 'ARS', sin_iva: base * 1.25, con_iva: base * 1.25 * 1.21, regla: '+25% sobre Contado' },
+    { lista: '0-30-60', categoria: 'Distribución', moneda: 'ARS', sin_iva: base * 0.95, con_iva: base * 0.95 * 1.21, regla: '-5% sobre Contado' },
+    { lista: 'Reventa 0/30/60', categoria: 'Reventa', moneda: 'ARS', sin_iva: base * 0.85, con_iva: base * 0.85 * 1.21, regla: '-15% sobre Contado' },
+    { lista: 'Reventa Afiliado Contado (PSR/LTR BSAR)', categoria: 'Reventa afiliado', moneda: 'ARS', sin_iva: base * 0.8, con_iva: base * 0.8 * 1.21, regla: 'Precio fijo' },
+    { lista: 'Afiliados empresas Contado (PSR/LTR BSAR)', categoria: 'Empresa afiliado', moneda: 'ARS', sin_iva: base * 0.82, con_iva: base * 0.82 * 1.21, regla: 'Precio fijo' }
+  ];
+  const principal = base => ({ lista: 'Contado', categoria: 'principal', moneda: 'ARS', sin_iva: base, con_iva: base * 1.21, regla: 'Precio fijo' });
   return { q, iva: 0.21, total: 2, limitado: false, productos: [
-    { id: 1, nombre: '205/55R16 91V NEUMATICO DEMO A', codigo: 'DEMO-A', categoria: 'All / NEUMATICOS / PCR', precio_venta: 150000, stock_total: 9,
-      stock: [{ deposito: 'Posadas', cantidad: 6 }, { deposito: 'Eldorado', cantidad: 3 }],
-      precios: [
-        { lista: 'Contado', moneda: 'ARS', sin_iva: 135000, con_iva: 163350, regla: '-10% sobre Minorista' },
-        { lista: 'Mayorista', moneda: 'ARS', sin_iva: 127500, con_iva: 154275, regla: '-15% sobre precio de venta' },
-        { lista: 'Minorista', moneda: 'ARS', sin_iva: 150000, con_iva: 181500, regla: 'Precio fijo' }
-      ] },
-    { id: 2, nombre: '205/55R16 94W NEUMATICO DEMO B', codigo: 'DEMO-B', categoria: 'All / NEUMATICOS / PCR', precio_venta: 180000, stock_total: 0,
-      stock: [],
-      precios: [
-        { lista: 'Contado', moneda: 'ARS', sin_iva: 162000, con_iva: 196020, regla: '-10% sobre Minorista' },
-        { lista: 'Mayorista', moneda: 'ARS', sin_iva: 153000, con_iva: 185130, regla: '-15% sobre precio de venta' },
-        { lista: 'Minorista', moneda: 'ARS', sin_iva: 180000, con_iva: 217800, regla: 'Precio de venta' }
-      ] }
+    { id: 1, nombre: '185/65R15 88H NEUMATICO DEMO A', codigo: 'DEMO-A', categoria: 'All / NEUMATICOS / PCR', stock_total: 9,
+      stock: [{ deposito: 'Posadas', cantidad: 6 }, { deposito: 'Eldorado', cantidad: 3 }], principal: principal(120000), precios: precios(120000) },
+    { id: 2, nombre: '185/60R15 84T NEUMATICO DEMO B', codigo: 'DEMO-B', categoria: 'All / NEUMATICOS / PCR', stock_total: 0,
+      stock: [], principal: principal(105000), precios: precios(105000) }
   ] };
 }
 
@@ -188,6 +213,7 @@ function money(v, moneda){
 
 function render(){
   const res = document.getElementById('results'), status = document.getElementById('status');
+  renderCats();
   if(!data) return;
   const soloStock = document.getElementById('soloStock').checked;
   const conIva = document.getElementById('conIva').checked;
@@ -206,18 +232,35 @@ function render(){
     const stockChips = p.stock.length
       ? p.stock.map(d => `<span class="chip">${esc(d.deposito)}: <b>${d.cantidad}</b></span>`).join('')
       : '<span class="chip">Sin stock en ningún depósito</span>';
-    const filas = p.precios.map(pr => `
+    const visibles = p.precios.filter(pr => cat === 'Todas' || pr.categoria === cat);
+    let grupo = null;
+    const filas = visibles.map(pr => {
+      let cab = '';
+      if(cat === 'Todas' && pr.categoria !== grupo){
+        grupo = pr.categoria;
+        cab = `<tr class="grp"><td colspan="${conIva ? 3 : 2}">${esc(grupo)}</td></tr>`;
+      }
+      return cab + `
       <tr>
         <td class="lista"><b>${esc(pr.lista)}</b><small>${esc(pr.regla)}</small></td>
         <td class="num ${conIva ? '' : 'big'}">${money(pr.sin_iva, pr.moneda)}</td>
         ${conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>` : ''}
-      </tr>`).join('');
+      </tr>`;
+    }).join('') || `<tr><td colspan="${conIva ? 3 : 2}" class="lista"><small>Sin listas de ${esc(cat)} para este producto.</small></td></tr>`;
+    const pr0 = p.principal;
+    const principal = pr0 ? `
+      <div class="principal">
+        <span class="lbl">Contado</span>
+        <span class="val">${money(conIva ? pr0.con_iva : pr0.sin_iva, pr0.moneda)}</span>
+        <span class="alt">${conIva ? money(pr0.sin_iva, pr0.moneda) + ' sin IVA' : money(pr0.con_iva, pr0.moneda) + ' con IVA'}</span>
+      </div>` : '';
     return `
       <details class="prod" ${i === 0 ? 'open' : ''}>
         <summary>
           <div class="pinfo">
             <div class="pname">${esc(p.nombre)}</div>
             <div class="pmeta">${esc(p.codigo)}${p.codigo && p.categoria ? ' · ' : ''}${esc(p.categoria.replace(/^All \/ /, ''))}</div>
+            ${principal}
           </div>
           <div class="pstock ${p.stock_total > 0 ? '' : 'zero'}"><b>${p.stock_total}</b><small>en stock</small></div>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -225,7 +268,7 @@ function render(){
         <div class="pbody">
           <div class="sect">Stock disponible por depósito</div>
           <div class="chips">${stockChips}</div>
-          <div class="sect">Precios por lista</div>
+          <div class="sect">Precios por lista${cat === 'Todas' ? '' : ' · ' + esc(cat)}</div>
           <div class="tbl-wrap">
             <table>
               <thead><tr><th>Lista</th><th class="num">Sin IVA</th>${conIva ? `<th class="num">Con IVA ${Math.round((data.iva || 0) * 100)}%</th>` : ''}</tr></thead>
@@ -237,6 +280,7 @@ function render(){
   }).join('') + `<p class="foot-note">Precios para 1 unidad, calculados con las reglas vigentes de cada lista. Stock disponible = cantidad menos lo reservado.</p>`;
 }
 
+renderCats();
 if(DEMO) document.getElementById('demoBar').style.display = 'block';
 document.getElementById('q').focus();
 </script>
