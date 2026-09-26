@@ -95,7 +95,6 @@
   tr.fila.on td{background:#e8f4ec}
   tr.contado td.lista b{color:var(--accent-dk)}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-  .siniva{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
   .demo{background:var(--accent-dk);color:#fff;font-size:12px;text-align:center;padding:4px}
   .foot-note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.5}
 </style>
@@ -246,7 +245,7 @@ function nivelStock(total){
   if(total >= 8) return { clase: 'mod',  texto: 'Moderado',   emoji: '\u26A0\uFE0F' };
   return               { clase: 'crit', texto: 'Crítico',    emoji: '\u26D4' };
 }
-// Listas que se muestran y se envían siempre SIN IVA (cualquier nombre que empiece con "Proforma")
+// Listas sin IVA: se muestran y envían con su precio tal cual, sin sumar IVA (cualquier nombre que empiece con "Proforma")
 const esSinIva = pr => /^proforma\b/i.test(String(pr.lista || '').trim());
 const ES_AFILIADO = c => c === 'Reventa afiliado' || c === 'Empresa afiliado';
 const preciosVisibles = p => p.precios.filter(pr => cat === 'Todas' || pr.categoria === cat);
@@ -286,8 +285,8 @@ function render(){
       <td class="sel"><input type="checkbox" ${on ? 'checked' : ''} aria-label="Enviar ${esc(pr.lista)}" tabindex="0"></td>
       <td class="lista"><b>${esc(pr.lista)}</b></td>` +
       (esSinIva(pr)
-        ? (conIva ? `<td class="num big">${money(pr.sin_iva, pr.moneda)} <small class="siniva">+ IVA</small></td>`
-                  : `<td class="num big">${money(pr.sin_iva, pr.moneda)}</td><td class="num"><small class="siniva">—</small></td>`)
+        ? (conIva ? `<td class="num big">${money(pr.sin_iva, pr.moneda)}</td>`
+                  : `<td class="num big" colspan="2">${money(pr.sin_iva, pr.moneda)}</td>`)
         : (conIva ? `<td class="num big">${money(pr.con_iva, pr.moneda)}</td>`
                   : `<td class="num">${money(pr.sin_iva, pr.moneda)}</td><td class="num big">${money(pr.con_iva, pr.moneda)}</td>`)) +
       `</tr>`;
@@ -379,11 +378,8 @@ function armarMensaje(id){
   if(p.marca) l.push(`Marca: ${p.marca}`);
   l.push(`Stock: ${nv.emoji} ${nv.texto}`);
   l.push('');
-  l.push(elegidos.every(esSinIva) ? '*Precio sin IVA*' : elegidos.some(esSinIva) ? '*Precios*' : '*Precio con IVA*');
-  const mixto = elegidos.some(esSinIva) && !elegidos.every(esSinIva);
-  elegidos.forEach(pr => l.push(esSinIva(pr)
-    ? `• ${pr.lista}: ${money(pr.sin_iva, pr.moneda)}${mixto ? ' + IVA' : ''}`
-    : `• ${pr.lista}: ${money(pr.con_iva, pr.moneda)}${mixto ? ' (IVA incluido)' : ''}`));
+  l.push(elegidos.some(esSinIva) ? '*Precios*' : '*Precio con IVA*');
+  elegidos.forEach(pr => l.push(`• ${pr.lista}: ${money(esSinIva(pr) ? pr.sin_iva : pr.con_iva, pr.moneda)}`));
   l.push('');
   l.push('_Precios sujetos a modificación sin previo aviso._');
   return l.join('\n');
